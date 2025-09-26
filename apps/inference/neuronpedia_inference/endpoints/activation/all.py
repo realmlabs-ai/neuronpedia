@@ -124,9 +124,7 @@ class ActivationProcessor:
 
         # Get the first sae and check if prepend bos is true, then pass to token getter
         first_layer = request.selected_sources[0]
-        prepend_bos = True # sae_manager.get_sae(first_layer).cfg.metadata.prepend_bos
-        if request.prompt.startswith("<|begin_of_text|>"):
-            prepend_bos = False
+        prepend_bos = sae_manager.get_sae(first_layer).cfg.metadata.prepend_bos
 
         _, str_tokens, cache = self._tokenize_and_get_cache(
             request.prompt, prepend_bos, max_layer
@@ -192,8 +190,6 @@ class ActivationProcessor:
             activations_by_index = self._get_activations_by_index(
                 sae_type, selected_source, cache, hook_name
             )
-
-            activations_by_index[:, :1] = 0
 
             # replace activations with only those in the feature list
             if request.feature_filter:
