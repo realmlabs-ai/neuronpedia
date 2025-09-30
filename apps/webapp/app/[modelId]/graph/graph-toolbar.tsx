@@ -430,7 +430,9 @@ export default function GraphToolbar() {
                       .filter((graph) => graph.sourceSetName === selectedSourceSetName);
                     const featuredGraphs = allVisibleGraphs
                       .filter((graph) => graph.isFeatured && session.data?.user?.id !== graph.userId)
-                      .filter((graph) => graph.sourceSetName === selectedSourceSetName);
+                      .filter(
+                        (graph) => graph.sourceSetName === selectedSourceSetName || ANTHROPIC_MODELS.has(graph.modelId),
+                      );
                     // the currently selected graph
                     const otherSelectedGraph =
                       selectedMetadataGraph &&
