@@ -178,9 +178,6 @@ export default function GraphToolbar() {
                       {globalModels[selectedModelId].owner}
                     </div>
                   )}
-                  {ANTHROPIC_MODELS.has(selectedModelId) && (
-                    <div className="w-full text-[9px] font-normal text-slate-400">Anthropic</div>
-                  )}
                 </div>
               </Select.Value>
               <Select.Icon>
@@ -219,9 +216,6 @@ export default function GraphToolbar() {
                               >
                                 {globalModels[modelId].owner}
                               </div>
-                            )}
-                            {ANTHROPIC_MODELS.has(modelId) && (
-                              <div className="w-full text-[9px] font-normal text-slate-400">Anthropic</div>
                             )}
                           </div>
                         </div>

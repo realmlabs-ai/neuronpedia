@@ -1,4 +1,5 @@
 import { SaveSubgraphRequestSchema } from '@/app/[modelId]/graph/graph-types';
+import { ANTHROPIC_MODELS } from '@/app/[modelId]/graph/utils';
 import { prisma } from '@/lib/db';
 import { RequestAuthedUser, withAuthedUser } from '@/lib/with-user';
 import { NextResponse } from 'next/server';
@@ -118,6 +119,31 @@ export const POST = withAuthedUser(async (request: RequestAuthedUser) => {
         },
       });
       return NextResponse.json({ success: true, subgraphId: overwriteId });
+    }
+
+    // if this is an anthropic model, we don't actually have the graph in our database since we load it from anthropic's site.
+    // so check if the graph metadata record exists. if not, create a stub for it.
+    if (ANTHROPIC_MODELS.has(modelId)) {
+      await prisma.graphMetadata.upsert({
+        where: {
+          modelId_slug: {
+            modelId,
+            slug,
+          },
+        },
+        create: {
+          modelId,
+          slug,
+          prompt: '',
+          titlePrefix: '',
+          url: '',
+        },
+        update: {
+          prompt: '',
+          titlePrefix: '',
+          url: '',
+        },
+      });
     }
 
     // save the subgraph
