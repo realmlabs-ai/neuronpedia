@@ -170,8 +170,8 @@ export default function Subgraph() {
   const screenSize = useScreenSize();
 
   // Web worker compute via helper
-  // const latestRequestIdRef = useRef(0);
-  // const [subgraphScores, setSubgraphScores] = useState({ replacementScore: 0, completenessScore: 0 });
+  const latestRequestIdRef = useRef(0);
+  const [subgraphScores, setSubgraphScores] = useState({ replacementScore: 0, completenessScore: 0 });
 
   // Web worker compute for overall graph scores
   const [graphScores, setGraphScores] = useState({ replacementScore: 0, completenessScore: 0 });
@@ -204,23 +204,23 @@ export default function Subgraph() {
       });
   }, [selectedGraph]);
 
-  // useEffect(() => {
-  //   if (!selectedGraph) {
-  //     setSubgraphScores({ replacementScore: 0, completenessScore: 0 });
-  //     return;
-  //   }
-  //   latestRequestIdRef.current += 1;
-  //   const requestId = latestRequestIdRef.current;
-  //   computeGraphScoresInWorker(selectedGraph, visState.pinnedIds)
-  //     .then(({ replacementScore, completenessScore }) => {
-  //       if (requestId !== latestRequestIdRef.current) return;
-  //       setSubgraphScores({ replacementScore, completenessScore });
-  //     })
-  //     .catch(() => {
-  //       if (requestId !== latestRequestIdRef.current) return;
-  //       setSubgraphScores({ replacementScore: 0, completenessScore: 0 });
-  //     });
-  // }, [selectedGraph, visState.pinnedIds]);
+  useEffect(() => {
+    if (!selectedGraph) {
+      setSubgraphScores({ replacementScore: 0, completenessScore: 0 });
+      return;
+    }
+    latestRequestIdRef.current += 1;
+    const requestId = latestRequestIdRef.current;
+    computeGraphScoresInWorker(selectedGraph, visState.pinnedIds)
+      .then(({ replacementScore, completenessScore }) => {
+        if (requestId !== latestRequestIdRef.current) return;
+        setSubgraphScores({ replacementScore, completenessScore });
+      })
+      .catch(() => {
+        if (requestId !== latestRequestIdRef.current) return;
+        setSubgraphScores({ replacementScore: 0, completenessScore: 0 });
+      });
+  }, [selectedGraph, visState.pinnedIds]);
 
   // Helper to create pct input color function
   const pctInputColorFn = useCallback((d: number) => {
@@ -1321,10 +1321,10 @@ export default function Subgraph() {
                     Measures the fraction of end-to-end influence from input tokens to output logits that flows through
                     feature nodes rather than error nodes. This is a strict metric that rewards complete explanations
                     where tokens influence logits entirely through features.
-                    {/* <br />
-                    The subgraph score treats features not included in the subgraph as error nodes by merging their edge
+                    <br /><br/>
+                    The graph score is for the entire pruned attribution graph, while the subgraph score is only for your pinned nodes and the nodes that are connected to them. It treats features not included in the subgraph as error nodes by merging their edge
                     weights with the corresponding error nodes (based on layer and position), then computes replacement
-                    and completeness scores using the modified adjacency matrix. */}
+                    and completeness scores using the modified adjacency matrix.
                   </div>
                 </CustomTooltip>
               </div>
@@ -1332,9 +1332,9 @@ export default function Subgraph() {
                 <div className="font-medium text-slate-600">
                   Graph: {graphScores.replacementScore?.toFixed(4) || 'N/A'}
                 </div>
-                {/* <div className="font-medium text-slate-600">
+                <div className="font-medium text-slate-600">
                   Subgraph*: {visState.pinnedIds.length > 0 ? subgraphScores.replacementScore?.toFixed(4) : 'N/A'}
-                </div> */}
+                </div>
               </div>
             </div>
             <div className="flex flex-1 flex-row items-center justify-center gap-x-3">
@@ -1353,10 +1353,10 @@ export default function Subgraph() {
                     output) that originate from feature or token nodes rather than error nodes. This metric gives
                     partial credit for nodes that are mostly explained by features, even if some error influence
                     remains.
-                    {/* <br />
-                    The subgraph score treats features not included in the subgraph as error nodes by merging their edge
+                    <br /><br/>
+                    The graph score is for the entire pruned attribution graph, while the subgraph score is only for your pinned nodes and the nodes that are connected to them. It treats features not included in the subgraph as error nodes by merging their edge
                     weights with the corresponding error nodes (based on layer and position), then computes replacement
-                    and completeness scores using the modified adjacency matrix. */}
+                    and completeness scores using the modified adjacency matrix.
                   </div>
                 </CustomTooltip>
               </div>
@@ -1364,9 +1364,9 @@ export default function Subgraph() {
                 <div className="font-medium text-slate-500">
                   Graph: {graphScores.completenessScore?.toFixed(4) || 'N/A'}
                 </div>
-                {/* <div className="font-medium text-slate-500">
+                <div className="font-medium text-slate-500">
                   Subgraph*: {visState.pinnedIds.length > 0 ? subgraphScores.completenessScore?.toFixed(4) : 'N/A'}
-                </div> */}
+                </div>
               </div>
             </div>
           </div>
