@@ -58,7 +58,7 @@ export const PUBLIC_ACTIVATIONS_USER_IDS = process.env.PUBLIC_ACTIVATIONS_USER_I
 // If you have access to a preexisting SMTP server, then setting custom settings will be easier.
 // Note that SMTP authentication is not supported at the time.
 const EmailProviderSchema = z.enum(['aws', 'resend', 'smtp']);
-export const EMAIL_SENDING_PROVIDER = EmailProviderSchema.parse(process.env.EMAIL_SENDING_PROVIDER || 'smtp');
+export const EMAIL_SENDING_PROVIDER = EmailProviderSchema.parse(process.env.EMAIL_SENDING_PROVIDER || 'aws');
 // AWS
 export const AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || '';
 export const AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || '';
