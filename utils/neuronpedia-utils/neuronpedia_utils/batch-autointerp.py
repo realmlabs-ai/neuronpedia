@@ -88,6 +88,9 @@ GEMINI_VERTEX = True
 #  - for a normal macbook pro, 50-100 is a ok number
 #  - for a machine with a beefier network card/memory, can go up to 300
 #  - you may need to experiment to find the max number for your machine (you'll see timeout errors)
+# consider setting these on your machine for higher performance
+# ulimit -n 32768
+# sudo sysctl -w net.inet.tcp.sendspace=2097152 net.inet.tcp.recvspace=2097152
 AUTOINTERP_BATCH_SIZE = 128
 
 # overridden by command line arguments
@@ -170,6 +173,8 @@ async def call_autointerp_openai_for_activations(
         else ApiClient.BASE_API_URL
     )
     override_api_key = GEMINI_API_KEY if is_gemini_model(EXPLAINER_MODEL_NAME) else None
+
+    global FAILED_FEATURE_INDEXES_OUTPUT
 
     try:
         activationRecords = []
@@ -288,7 +293,7 @@ async def call_autointerp_openai_for_activations(
                 print(f"Exception message: {str(e)}")
                 import traceback
 
-                # print(f"Traceback: {traceback.format_exc()}")
+                print(f"Traceback: {traceback.format_exc()}")
                 raise  # Re-raise to be caught by the outer try-except block
 
     except Exception as e:
@@ -298,11 +303,14 @@ async def call_autointerp_openai_for_activations(
             print(f"=== Explain Error, skipping index {feature_index} ===")
             print(e)
 
-        # print this at the end
-        global FAILED_FEATURE_INDEXES_OUTPUT
+        # processed at the end
         FAILED_FEATURE_INDEXES_OUTPUT.append(feature_index)
         return
-    assert len(explanations) == 1
+
+    if len(explanations) == 0:
+        FAILED_FEATURE_INDEXES_OUTPUT.append(feature_index)
+        return
+
     explanation = explanations[0]
     if explanation.endswith("."):
         explanation = explanation[:-1]
@@ -326,22 +334,24 @@ async def call_autointerp_openai_for_activations(
         )
         if len(explanation.strip()) == 0:
             # top activating token is empty, skip this feature
+            FAILED_FEATURE_INDEXES_OUTPUT.append(feature_index)
             pass
-        queuedToSave.append(
-            Explanation(
-                id=CUID_GENERATOR.generate(),
-                modelId=top_activation.modelId,
-                layer=top_activation.layer,
-                index=str(feature_index),
-                description=explanation,
-                typeName=EXPLAINER_TYPE_NAME,
-                explanationModelName=EXPLAINER_MODEL_NAME,
-                authorId=UPLOAD_EXPLANATION_AUTHORID or "",
+        else:
+            queuedToSave.append(
+                Explanation(
+                    id=CUID_GENERATOR.generate(),
+                    modelId=top_activation.modelId,
+                    layer=top_activation.layer,
+                    index=str(feature_index),
+                    description=explanation,
+                    typeName=EXPLAINER_TYPE_NAME,
+                    explanationModelName=EXPLAINER_MODEL_NAME,
+                    authorId=UPLOAD_EXPLANATION_AUTHORID or "",
+                )
             )
-        )
-        # print(
-        #     f"Using top activation token {explanation} for feature index {feature_index}\n"
-        # )
+            # print(
+            #     f"Using top activation token {explanation} for feature index {feature_index}\n"
+            # )
     else:
         queuedToSave.append(
             Explanation(
@@ -451,6 +461,9 @@ async def start(activations_dir: str):
                     )[:MAX_TOP_ACTIVATIONS_TO_SHOW_EXPLAINER_PER_FEATURE]
 
                     # enqueue it
+                    # if features_by_index doesn't have "index", skip
+                    if index not in features_by_index:
+                        continue
                     task = asyncio.create_task(
                         enqueue_autointerp_openai_task_with_activations(
                             activations_by_index[index],
@@ -549,18 +562,7 @@ def main(
             "GEMINI_API_KEY is not set even though you're using a Gemini model"
         )
 
-    global \
-        FAILED_FEATURE_INDEXES_QUEUED, \
-        INPUT_DIR_WITH_SOURCE_EXPORTS, \
-        START_INDEX, \
-        END_INDEX, \
-        EXPLAINER_MODEL_NAME, \
-        EXPLAINER_TYPE_NAME, \
-        MAX_TOP_ACTIVATIONS_TO_SHOW_EXPLAINER_PER_FEATURE, \
-        AUTOINTERP_BATCH_SIZE, \
-        EXPLANATIONS_OUTPUT_DIR, \
-        GZIP_OUTPUT, \
-        IGNORE_FIRST_N_TOKENS
+    global FAILED_FEATURE_INDEXES_QUEUED, INPUT_DIR_WITH_SOURCE_EXPORTS, START_INDEX, END_INDEX, EXPLAINER_MODEL_NAME, EXPLAINER_TYPE_NAME, MAX_TOP_ACTIVATIONS_TO_SHOW_EXPLAINER_PER_FEATURE, AUTOINTERP_BATCH_SIZE, EXPLANATIONS_OUTPUT_DIR, GZIP_OUTPUT, IGNORE_FIRST_N_TOKENS
     INPUT_DIR_WITH_SOURCE_EXPORTS = input_dir_with_source_exports
     if not os.path.exists(INPUT_DIR_WITH_SOURCE_EXPORTS):
         raise ValueError(
@@ -640,7 +642,8 @@ def main(
         f"{len(FAILED_FEATURE_INDEXES_OUTPUT)} indexes failed to auto-interp: {FAILED_FEATURE_INDEXES_OUTPUT}"
     )
     print(f"Writing failed indexes to {failed_file_path}")
-    with open(failed_file_path, "w") as f:
+    mode = "w" if only_failed_features else "a"
+    with open(failed_file_path, mode) as f:
         for index in FAILED_FEATURE_INDEXES_OUTPUT:
             f.write(f"{index}\n")
 
