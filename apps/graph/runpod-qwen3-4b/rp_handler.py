@@ -531,7 +531,7 @@ def graph_generation_handler(event):
             "source_urls": ["https://huggingface.co/mwhanna/qwen3-4b-transcoders"],
             "generator": {
                 "name": "circuit-tracer by Hanna & Piotrowski",
-                "version": "0.2.0 | 3976e39",
+                "version": "0.2.0 | e4a3c5a",
                 "url": "https://github.com/safety-research/circuit-tracer",
             },
             "create_time_ms": current_time_ms,
