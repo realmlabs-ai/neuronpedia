@@ -111,16 +111,16 @@ export const AUTOINTERP_SERVER = process.env.AUTOINTERP_SERVER || '';
 export const AUTOINTERP_SERVER_SECRET = process.env.AUTOINTERP_SERVER_SECRET || '';
 
 // Graph Server
-// Three possible states: Localhost Graph, Remote Graph, and Runpod ServerlessGraph
-// USE_LOCALHOST_GRAPH and USE_RUNPOD_GRAPH cannot both be true.
+// If USE_LOCALHOST_GRAPH is true, it will always use the localhost graph server.
+// Else it will check for the server in GraphHostSource table, and use the Runpod server if it exists, otherwise use the regular hostUrl.
 export const USE_LOCALHOST_GRAPH = process.env.USE_LOCALHOST_GRAPH === 'true';
 export const GRAPH_SERVER_SECRET = process.env.GRAPH_SERVER_SECRET || '';
 
 // Runpod Graph
-export const USE_RUNPOD_GRAPH = process.env.USE_RUNPOD_GRAPH === 'true';
-if (USE_RUNPOD_GRAPH && USE_LOCALHOST_GRAPH) {
-  throw new Error('USE_LOCALHOST_GRAPH and USE_RUNPOD_GRAPH cannot both be true.');
-}
+// export const USE_RUNPOD_GRAPH = process.env.USE_RUNPOD_GRAPH === 'true';
+// if (USE_RUNPOD_GRAPH && USE_LOCALHOST_GRAPH) {
+//   throw new Error('USE_LOCALHOST_GRAPH and USE_RUNPOD_GRAPH cannot both be true.');
+// }
 export const GRAPH_RUNPOD_SECRET = process.env.GRAPH_RUNPOD_SECRET || '';
 
 // Authentication Methods
