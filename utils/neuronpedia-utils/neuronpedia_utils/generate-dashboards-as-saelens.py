@@ -238,6 +238,13 @@ def main(
             help="[Optional] [Dashboard Gen Parameters] Prepend Chat Template Text: If you are generating activations for an instruct model using a dataset that does not have chat templates, you can prepend each prompt with a chat template like:'<bos><start_of_turn>user\\nWrite me a random sentence.<end_of_turn>\\n<start_of_turn>model\\n'",
         ),
     ] = None,
+    max_features: Annotated[
+        Optional[int],
+        typer.Option(
+            "--max-features",
+            help="[Optional] [Dashboard Gen Parameters] Max Features: Maximum number of features to process. If not specified, processes all features in the SAE. Useful for testing with a subset (e.g., --max-features=256 to only process first 256 features).",
+        ),
+    ] = None,
 ):
     # Set activation_thresholds_json_file to None since we removed the parameter
     activation_thresholds_json_file = None
@@ -303,14 +310,48 @@ def main(
         if path_to_weights.endswith('.safetensors'):
             with safe_open(path_to_weights, framework="pt", device="cpu") as f:
                 # Get all tensor names and load them into a dict
-                weights = {}
+                weights_dict = {}
                 for key in f.keys():
-                    weights[key] = f.get_tensor(key)
-                # If there's only one tensor, use it directly
-                if len(weights) == 1:
-                    weights = list(weights.values())[0]
+                    weights_dict[key] = f.get_tensor(key)
+
+                # Try to find the main weight tensor
+                # Common keys: 'weight', 'W_enc', 'encoder.weight', 'decoder.weight', etc.
+                if len(weights_dict) == 1:
+                    # If there's only one tensor, use it directly
+                    weights = list(weights_dict.values())[0]
+                elif 'weight' in weights_dict:
+                    weights = weights_dict['weight']
+                elif 'W_enc' in weights_dict:
+                    weights = weights_dict['W_enc']
+                elif 'encoder.weight' in weights_dict:
+                    weights = weights_dict['encoder.weight']
+                else:
+                    # If we can't find a standard key, print available keys and use the first one
+                    print(f"Warning: Could not find standard weight tensor. Available keys: {list(weights_dict.keys())}")
+                    print(f"Using first tensor with key: {list(weights_dict.keys())[0]}")
+                    weights = list(weights_dict.values())[0]
         else:
             weights = torch.load(path_to_weights, weights_only=False)
+
+        # Print weight tensor info for debugging
+        print(f"Loaded weights shape: {weights.shape}")
+        print(f"Loaded weights dtype: {weights.dtype}")
+
+        # For SAE encoder weights, they're typically stored as [d_model, n_features]
+        # but VectorSet expects [n_vectors, d_model], so we need to transpose
+        if weights.shape[0] < weights.shape[1]:
+            print(f"Transposing weights from {weights.shape} to {weights.T.shape}")
+            weights = weights.T
+
+        # Ensure weights are contiguous in memory after transpose
+        weights = weights.contiguous()
+
+        # Limit to max_features if specified (for testing with subset)
+        if max_features is not None and weights.shape[0] > max_features:
+            print(f"Limiting to first {max_features} features (out of {weights.shape[0]} total)")
+            weights = weights[:max_features]
+
+        print(f"Final weights shape to process: {weights.shape}")
 
         hook_point_name = f"blocks.{layer_num}.{hook_point.value}"
 
@@ -327,7 +368,8 @@ def main(
         intermediate_output_dir = (
             f"{INTERMEDIATE_OUTPUT_DIR}/{model_name}/{neuronpedia_source_set_id}"
         )
-        shutil.rmtree(intermediate_output_dir)
+        if os.path.exists(intermediate_output_dir):
+            shutil.rmtree(intermediate_output_dir)
         os.makedirs(intermediate_output_dir)
 
         print("Generating activations...")

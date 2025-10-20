@@ -201,13 +201,15 @@ async def call_autointerp_openai_for_activations(
                 base_api_url=base_api_url,
                 override_api_key=override_api_key,
             )
+            generate_kwargs = {
+                "max_tokens": 2000,
+                "all_activation_records": activationRecords,
+                "num_samples": 1,
+            }
+            if REASONING_EFFORT is not None:
+                generate_kwargs["reasoning_effort"] = REASONING_EFFORT
             explanations = await asyncio.wait_for(
-                explainer.generate_explanations(
-                    max_tokens=2000,
-                    all_activation_records=activationRecords,
-                    num_samples=1,
-                    reasoning_effort=REASONING_EFFORT,
-                ),
+                explainer.generate_explanations(**generate_kwargs),
                 timeout=20,
             )
         elif EXPLAINER_TYPE_NAME == "oai_token-act-pair":
@@ -224,14 +226,16 @@ async def call_autointerp_openai_for_activations(
                 base_api_url=base_api_url,
                 override_api_key=override_api_key,
             )
+            generate_kwargs = {
+                "max_tokens": 2000,
+                "all_activation_records": activationRecords,
+                "max_activation": calculate_max_activation(activationRecords),
+                "num_samples": 1,
+            }
+            if REASONING_EFFORT is not None:
+                generate_kwargs["reasoning_effort"] = REASONING_EFFORT
             explanations = await asyncio.wait_for(
-                explainer.generate_explanations(
-                    max_tokens=2000,
-                    all_activation_records=activationRecords,
-                    max_activation=calculate_max_activation(activationRecords),
-                    num_samples=1,
-                    reasoning_effort=REASONING_EFFORT,
-                ),
+                explainer.generate_explanations(**generate_kwargs),
                 timeout=20,
             )
         elif EXPLAINER_TYPE_NAME == "np_acts-logits-general":
@@ -249,17 +253,19 @@ async def call_autointerp_openai_for_activations(
                 override_api_key=override_api_key,
             )
             try:
-                explanations = await asyncio.wait_for(
-                    explainer.generate_explanations(
-                        all_activation_records=activationRecords,
-                        max_tokens=2000,
-                        max_activation=calculate_max_activation(activationRecords),
-                        top_positive_logits=replace_html_anomalies_and_special_chars(
-                            feature.pos_str
-                        ),
-                        num_samples=1,
-                        reasoning_effort=REASONING_EFFORT,
+                generate_kwargs = {
+                    "all_activation_records": activationRecords,
+                    "max_tokens": 2000,
+                    "max_activation": calculate_max_activation(activationRecords),
+                    "top_positive_logits": replace_html_anomalies_and_special_chars(
+                        feature.pos_str
                     ),
+                    "num_samples": 1,
+                }
+                if REASONING_EFFORT is not None:
+                    generate_kwargs["reasoning_effort"] = REASONING_EFFORT
+                explanations = await asyncio.wait_for(
+                    explainer.generate_explanations(**generate_kwargs),
                     timeout=20,
                 )
             except Exception as e:
@@ -287,17 +293,19 @@ async def call_autointerp_openai_for_activations(
                 override_api_key=override_api_key,
             )
             try:
-                explanations = await asyncio.wait_for(
-                    explainer.generate_explanations(
-                        all_activation_records=activationRecords,
-                        max_tokens=2000,
-                        max_activation=calculate_max_activation(activationRecords),
-                        top_positive_logits=replace_html_anomalies_and_special_chars(
-                            feature.pos_str
-                        ),
-                        num_samples=1,
-                        reasoning_effort=REASONING_EFFORT,
+                generate_kwargs = {
+                    "all_activation_records": activationRecords,
+                    "max_tokens": 2000,
+                    "max_activation": calculate_max_activation(activationRecords),
+                    "top_positive_logits": replace_html_anomalies_and_special_chars(
+                        feature.pos_str
                     ),
+                    "num_samples": 1,
+                }
+                if REASONING_EFFORT is not None:
+                    generate_kwargs["reasoning_effort"] = REASONING_EFFORT
+                explanations = await asyncio.wait_for(
+                    explainer.generate_explanations(**generate_kwargs),
                     timeout=20,
                 )
             except Exception as e:
@@ -325,14 +333,16 @@ async def call_autointerp_openai_for_activations(
                 override_api_key=override_api_key,
             )
             try:
+                generate_kwargs = {
+                    "all_activation_records": activationRecords,
+                    "max_tokens": 2000,
+                    "max_activation": calculate_max_activation(activationRecords),
+                    "num_samples": 1,
+                }
+                if REASONING_EFFORT is not None:
+                    generate_kwargs["reasoning_effort"] = REASONING_EFFORT
                 explanations = await asyncio.wait_for(
-                    explainer.generate_explanations(
-                        all_activation_records=activationRecords,
-                        max_tokens=2000,
-                        max_activation=calculate_max_activation(activationRecords),
-                        num_samples=1,
-                        reasoning_effort=REASONING_EFFORT,
-                    ),
+                    explainer.generate_explanations(**generate_kwargs),
                     timeout=20,
                 )
             except Exception as e:
