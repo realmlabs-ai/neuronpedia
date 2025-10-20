@@ -232,19 +232,15 @@ def main(
     ] = True,
     prepend_chat_template_text: Annotated[
         Optional[str],
-        make_option(
+        typer.Option(
             "--prepend-chat-template-text",
-            help_text="[Optional] [Dashboard Gen Parameters] Prepend Chat Template Text: If you are generating activations for an instruct model using a dataset that does not have chat templates, you can prepend each prompt with a chat template like:'<bos><start_of_turn>user\\nWrite me a random sentence.<end_of_turn>\\n<start_of_turn>model\\n'",
-        ),
-    ] = None,
-    activation_thresholds_json_file: Annotated[
-        Optional[str],
-        make_option(
-            "--activation-thresholds-json-file",
-            help_text="[Optional] [Dashboard Gen Parameters] Activation Thresholds File: If you would like to disregard activation values that are below a certain threshold, you can provide a json file with a dictionary that maps from index (string) to threshold (float or int). Provide the path to that file here.",
+            help="[Optional] [Dashboard Gen Parameters] Prepend Chat Template Text: If you are generating activations for an instruct model using a dataset that does not have chat templates, you can prepend each prompt with a chat template like:'<bos><start_of_turn>user\\nWrite me a random sentence.<end_of_turn>\\n<start_of_turn>model\\n'",
         ),
     ] = None,
 ):
+    # Set activation_thresholds_json_file to None since we removed the parameter
+    activation_thresholds_json_file = None
+    
     print("Running with arguments:\n")
     for param, value in ctx.params.items():
         print(f"{param}: {value}")
