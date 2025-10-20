@@ -52,6 +52,7 @@ import dotenv
 from enum import Enum
 from huggingface_hub import hf_hub_download
 import torch
+from safetensors import safe_open
 from sae_dashboard.neuronpedia.vector_set import VectorSet
 from sae_dashboard.neuronpedia.neuronpedia_vector_runner import (
     NeuronpediaVectorRunner,
@@ -298,7 +299,18 @@ def main(
         else:
             activation_thresholds = None
 
-        weights = torch.load(path_to_weights, weights_only=True)
+        # Load safetensors file
+        if path_to_weights.endswith('.safetensors'):
+            with safe_open(path_to_weights, framework="pt", device="cpu") as f:
+                # Get all tensor names and load them into a dict
+                weights = {}
+                for key in f.keys():
+                    weights[key] = f.get_tensor(key)
+                # If there's only one tensor, use it directly
+                if len(weights) == 1:
+                    weights = list(weights.values())[0]
+        else:
+            weights = torch.load(path_to_weights, weights_only=False)
 
         hook_point_name = f"blocks.{layer_num}.{hook_point.value}"
 
