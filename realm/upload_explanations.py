@@ -146,10 +146,10 @@ def ensure_model_exists(conn, model_id: str, num_layers: int, user_id: str):
         cursor.execute('''
             INSERT INTO "Model" (
                 id, "displayName", "creatorId", layers, "neuronsPerLayer", 
-                "owner", "createdAt", "updatedAt"
+                "owner", visibility, "createdAt", "updatedAt"
             )
-            VALUES (%s, %s, %s, %s, %s, %s, NOW(), NOW())
-        ''', (clean_model_id, f"{model_id} (Local)", user_id, num_layers, 4096, user_id))
+            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW(), NOW())
+        ''', (clean_model_id, f"{model_id} (Local)", user_id, num_layers, 4096, user_id, 'PUBLIC'))
         
         conn.commit()
         print(f"Created model: {clean_model_id} (cleaned from {model_id}) with {num_layers} layers")
@@ -180,15 +180,16 @@ def ensure_source_set_exists(conn, model_id: str, source_set_name: str, num_laye
             # Create source set with all required fields
             cursor.execute('''
                 INSERT INTO "SourceSet" (
-                    "modelId", name, description, "creatorName", "creatorId", "createdAt"
+                    "modelId", name, description, "creatorName", "creatorId", visibility, "createdAt"
                 )
-                VALUES (%s, %s, %s, %s, %s, NOW())
+                VALUES (%s, %s, %s, %s, %s, %s, NOW())
             ''', (
                 model_id, 
                 source_set_name, 
                 f"Auto-interpreted SAE features for {model_id}",
                 'akash-realm-local',
-                user_id
+                user_id,
+                'PUBLIC'
             ))
             print(f"Created source set: {source_set_name}")
         
@@ -438,7 +439,7 @@ def upload_activations(conn, activations_by_layer: Dict[int, List], model_id: st
     
     return total_inserted
 
-def upload_explanations_complete(explanations_dir: str, source_set_name: str = None, upload_activations_too: bool = True):
+def upload_explanations_complete(explanations_dir: str, source_set_name: str = None, upload_activations_too: bool = False):
     """Complete upload with all dependencies handled."""
     
     # Get model info

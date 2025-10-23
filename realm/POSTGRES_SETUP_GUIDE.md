@@ -16,9 +16,12 @@ sudo apt install postgresql postgresql-contrib
 sudo systemctl start postgresql
 sudo systemctl enable postgresql
 
-# Switch to postgres user and create required user/database
-sudo -u postgres psql -c "CREATE USER postgres WITH SUPERUSER PASSWORD 'postgres';"
-sudo -u postgres createdb postgres
+# Switch to postgres user and set up database
+# First try to set password for existing postgres user, if that fails create the user
+sudo -u postgres psql -c "ALTER USER postgres PASSWORD 'postgres';" || sudo -u postgres psql -c "CREATE USER postgres WITH SUPERUSER PASSWORD 'postgres';"
+
+# Create postgres database if it doesn't exist
+sudo -u postgres createdb postgres || echo "Database postgres already exists"
 ```
 
 ### Verify Installation
@@ -75,13 +78,36 @@ sudo apt install postgresql-16 postgresql-contrib-16
 
 ## Setup Neuronpedia Database
 
-### 1. Install Dependencies
+### 1. Install pgvector Extension (Required)
+
+Neuronpedia requires the pgvector extension for vector operations. Install it before running migrations:
+
+```bash
+# Install build dependencies
+sudo apt update
+sudo apt install build-essential postgresql-server-dev-16
+
+# Clone and build pgvector
+git clone --branch v0.5.1 https://github.com/pgvector/pgvector.git
+cd pgvector
+make
+sudo make install
+
+# Enable pgvector extension in your database
+psql -h localhost -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS vector;"
+```
+
+For other systems:
+- **Docker**: The postgres:16 image already includes pgvector
+- **macOS with Homebrew**: `brew install pgvector`
+
+### 2. Install Dependencies
 ```bash
 cd apps/webapp
 npm install
 ```
 
-### 2. Run Database Migrations
+### 3. Run Database Migrations
 ```bash
 # Create and apply database schema
 npm run migrate:localhost
