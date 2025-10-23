@@ -66,6 +66,35 @@ export default async function middleware(request: NextRequest) {
   const ip = request.ip ?? '127.0.0.1';
   const pathname = request.nextUrl.pathname.toLowerCase();
 
+  // Basic Auth Check (if enabled)
+  const basicAuthUser = process.env.BASIC_AUTH_USERNAME;
+  const basicAuthPass = process.env.BASIC_AUTH_PASSWORD;
+  
+  if (basicAuthUser && basicAuthPass) {
+    const authHeader = request.headers.get('authorization');
+    
+    if (!authHeader) {
+      return new NextResponse('Authentication required', {
+        status: 401,
+        headers: {
+          'WWW-Authenticate': 'Basic realm="Neuronpedia Local"',
+        },
+      });
+    }
+    
+    const auth = authHeader.split(' ')[1];
+    const [user, pass] = Buffer.from(auth, 'base64').toString().split(':');
+    
+    if (user !== basicAuthUser || pass !== basicAuthPass) {
+      return new NextResponse('Invalid credentials', {
+        status: 401,
+        headers: {
+          'WWW-Authenticate': 'Basic realm="Neuronpedia Local"',
+        },
+      });
+    }
+  }
+
   const isEmbedSearchParam = request.nextUrl.searchParams.get('embed');
   const isEmbed = isEmbedSearchParam === 'true' || pathname.startsWith('/embed/');
   requestHeaders.set('x-is-embed', isEmbed ? 'true' : 'false');
