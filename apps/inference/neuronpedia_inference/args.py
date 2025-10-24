@@ -34,6 +34,7 @@ def parse_env_and_args():
     args.max_loaded_saes = int(os.getenv("MAX_LOADED_SAES", "300"))
     args.sentry_dsn = os.getenv("SENTRY_DSN")
     args.nnsight = os.getenv("NNSIGHT", "").lower() == "true"
+    args.custom_sae_configs = os.getenv("CUSTOM_SAE_CONFIGS", "[]")
 
     return args
 

@@ -100,18 +100,42 @@ class SAEManager:
         start_time = time.time()
         logger.info(f"Loading SAE: {sae_id}")
 
-        sae_lens_release, sae_lens_id = get_sae_lens_ids_from_neuronpedia_id(
-            model_id=model_id,
-            neuronpedia_id=sae_id,
-            df_exploded=get_saelens_neuronpedia_directory_df(),
-        )
+        # Check if this is a custom HF SAE by looking through the config
+        is_custom_hf_sae = False
+        hf_repo_id = None
+        hf_sae_id = None
 
-        loaded_sae, hook_name = SaeLensSAE.load(
-            release=sae_lens_release,
-            sae_id=sae_lens_id,
-            device=self.device,
-            dtype=self.config.sae_dtype,
-        )
+        for sae_set in self.config.sae_config:
+            if sae_set.get("type") == "custom-hf" and sae_id in sae_set.get("saes", []):
+                is_custom_hf_sae = True
+                hf_repo_id = sae_set.get("hf_repo_id")
+                # For custom HF SAEs, use the sae_id from config (path within repo), or default to empty string
+                hf_sae_id = sae_set.get("sae_id", "")
+                break
+
+        if is_custom_hf_sae and hf_repo_id:
+            # Load directly from HuggingFace
+            logger.info(f"Loading custom HF SAE from {hf_repo_id}/{hf_sae_id}")
+            loaded_sae, hook_name = SaeLensSAE.load(
+                release=hf_repo_id,
+                sae_id=hf_sae_id,
+                device=self.device,
+                dtype=self.config.sae_dtype,
+            )
+        else:
+            # Load from SAELens directory
+            sae_lens_release, sae_lens_id = get_sae_lens_ids_from_neuronpedia_id(
+                model_id=model_id,
+                neuronpedia_id=sae_id,
+                df_exploded=get_saelens_neuronpedia_directory_df(),
+            )
+
+            loaded_sae, hook_name = SaeLensSAE.load(
+                release=sae_lens_release,
+                sae_id=sae_lens_id,
+                device=self.device,
+                dtype=self.config.sae_dtype,
+            )
 
         self.sae_data[sae_id] = {
             "sae": loaded_sae,

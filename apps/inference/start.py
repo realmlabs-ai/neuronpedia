@@ -115,6 +115,11 @@ def parse_args():
         action="store_true",
         help="Use nnsight. Not all models are currently supported.",
     )
+    parser.add_argument(
+        "--custom_sae_configs",
+        default="[]",
+        help="JSON string of custom SAE configurations for loading SAEs directly from HuggingFace",
+    )
     return parser.parse_args()
 
 
@@ -146,6 +151,8 @@ def main():
         os.environ["MAX_LOADED_SAES"] = str(args.max_loaded_saes)
     if "CUSTOM_HF_MODEL_ID" not in os.environ and args.custom_hf_model_id is not None:
         os.environ["CUSTOM_HF_MODEL_ID"] = str(args.custom_hf_model_id)
+    if "CUSTOM_SAE_CONFIGS" not in os.environ:
+        os.environ["CUSTOM_SAE_CONFIGS"] = args.custom_sae_configs
 
     if args.list_models:
         from neuronpedia_inference.args import list_available_options

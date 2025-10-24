@@ -159,6 +159,7 @@ async def initialize(
             model_from_pretrained_kwargs=args.model_from_pretrained_kwargs,
             max_loaded_saes=args.max_loaded_saes,
             nnsight=args.nnsight,
+            custom_sae_configs=args.custom_sae_configs,
         )
         Config._instance = config
 

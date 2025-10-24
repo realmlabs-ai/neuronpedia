@@ -39,6 +39,7 @@ class Config:
         max_loaded_saes: int = 100,
         steer_special_token_ids: list[int] | None = None,
         nnsight: bool = False,
+        custom_sae_configs: str = "[]",
     ):
         self.model_id = model_id
         self.custom_hf_model_id = custom_hf_model_id
@@ -54,6 +55,7 @@ class Config:
         self.sae_sets = sae_sets
         self.include_sae_patterns = include_sae
         self.exclude_sae_patterns = exclude_sae
+        self.custom_sae_configs = json.loads(custom_sae_configs)
         self.sae_config = self._filter_sae_config(self._generate_sae_config())
         self.model_kwargs = json.loads(model_from_pretrained_kwargs)
         self.max_loaded_saes = max_loaded_saes
@@ -90,15 +92,24 @@ class Config:
         return set([sae_set["model"] for sae_set in self.sae_config])
 
     def _generate_sae_config(self):
-        directory_df = get_saelens_neuronpedia_directory_df()
-        config_json = config_to_json(
-            directory_df,
-            selected_sets_neuronpedia=self.sae_sets,
-            selected_model=(
-                self.custom_hf_model_id if self.custom_hf_model_id else self.model_id
-            ),
-        )
-        return config_json  # noqa: RET504
+        config_json = []
+
+        # Load SAEs from SAELens directory if sae_sets is not empty
+        if self.sae_sets and self.sae_sets != [""]:
+            directory_df = get_saelens_neuronpedia_directory_df()
+            config_json = config_to_json(
+                directory_df,
+                selected_sets_neuronpedia=self.sae_sets,
+                selected_model=(
+                    self.custom_hf_model_id if self.custom_hf_model_id else self.model_id
+                ),
+            )
+
+        # Merge in custom SAE configs
+        if self.custom_sae_configs:
+            config_json.extend(self.custom_sae_configs)
+
+        return config_json
 
     def _filter_sae_config(
         self, sae_config: list[dict[str, str | list[str]]]
