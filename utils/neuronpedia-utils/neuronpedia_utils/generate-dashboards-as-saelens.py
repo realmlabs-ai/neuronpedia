@@ -331,7 +331,37 @@ def main(
                     print(f"Using first tensor with key: {list(weights_dict.keys())[0]}")
                     weights = list(weights_dict.values())[0]
         else:
-            weights = torch.load(path_to_weights, weights_only=False)
+            weights_data = torch.load(path_to_weights, weights_only=False)
+
+            # Handle dictionary-based .pth files (like Goodfire SAEs)
+            if isinstance(weights_data, dict):
+                print(f"Loaded .pth file with keys: {list(weights_data.keys())}")
+
+                # Try to find encoder weights with common key names
+                if 'encoder_linear.weight' in weights_data:
+                    weights = weights_data['encoder_linear.weight']
+                    print("Using 'encoder_linear.weight' from dictionary")
+                elif 'encoder.weight' in weights_data:
+                    weights = weights_data['encoder.weight']
+                    print("Using 'encoder.weight' from dictionary")
+                elif 'W_enc' in weights_data:
+                    weights = weights_data['W_enc']
+                    print("Using 'W_enc' from dictionary")
+                elif 'weight' in weights_data:
+                    weights = weights_data['weight']
+                    print("Using 'weight' from dictionary")
+                else:
+                    # Find the first tensor that looks like encoder weights
+                    for key, value in weights_data.items():
+                        if isinstance(value, torch.Tensor) and len(value.shape) == 2:
+                            weights = value
+                            print(f"Using first 2D tensor with key '{key}' from dictionary")
+                            break
+                    else:
+                        raise ValueError(f"Could not find encoder weights in .pth file. Available keys: {list(weights_data.keys())}")
+            else:
+                # It's a plain tensor
+                weights = weights_data
 
         # Print weight tensor info for debugging
         print(f"Loaded weights shape: {weights.shape}")
