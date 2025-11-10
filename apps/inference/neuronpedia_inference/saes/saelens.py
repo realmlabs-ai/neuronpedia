@@ -27,31 +27,114 @@ DTYPE_MAP = {
 class SaeLensSAE(BaseSAE):
     @staticmethod
     def load(release: str, sae_id: str, device: str, dtype: str) -> tuple[Any, str]:
-        # For root-level SAEs on HuggingFace (empty sae_id), just use the repo name as sae_id
-        # SAELens will try to load from {release}/{sae_id}/, so we pass release as sae_id
+        import os
+        import json
+
+        # Check if this is a local file path
+        is_local_path = (
+            release.startswith('/') or 
+            release.startswith('~') or 
+            release.startswith('file://') or
+            os.path.exists(os.path.expanduser(release))
+        )
+
         if sae_id == "" or sae_id is None:
-            # For root-level files, download and load manually
-            from huggingface_hub import hf_hub_download
-            import json
+            if is_local_path:
+                # Handle local file path
+                local_path = release.replace('file://', '')
+                local_path = os.path.expanduser(local_path)
+                
+                if not os.path.exists(local_path):
+                    raise FileNotFoundError(f"Local SAE path does not exist: {local_path}")
+                
+                cfg_path = os.path.join(local_path, "cfg.json")
+                if not os.path.exists(cfg_path):
+                    raise FileNotFoundError(f"cfg.json not found in: {local_path}")
 
-            # Download cfg.json and sae_weights.safetensors from repo root
-            cfg_path = hf_hub_download(repo_id=release, filename="cfg.json")
-            weights_path = hf_hub_download(repo_id=release, filename="sae_weights.safetensors")
+                # Load config
+                with open(cfg_path, 'r') as f:
+                    cfg_dict = json.load(f)
 
-            # Load config
-            with open(cfg_path, 'r') as f:
-                cfg_dict = json.load(f)
+                # Check for different weight file formats
+                weights_files = [
+                    "sae_weights.safetensors",
+                    "sae_weights.pth", 
+                    "weights.safetensors",
+                    "weights.pth"
+                ]
+                
+                # Look for any .pth files if standard names not found
+                if not any(os.path.exists(os.path.join(local_path, wf)) for wf in weights_files):
+                    pth_files = [f for f in os.listdir(local_path) if f.endswith('.pth')]
+                    if pth_files:
+                        weights_files.append(pth_files[0])  # Use first .pth file found
+                
+                weights_path = None
+                for weight_file in weights_files:
+                    full_path = os.path.join(local_path, weight_file)
+                    if os.path.exists(full_path):
+                        weights_path = full_path
+                        break
+                
+                if weights_path is None:
+                    available_files = os.listdir(local_path)
+                    raise FileNotFoundError(
+                        f"No SAE weights file found in: {local_path}\n"
+                        f"Available files: {available_files}\n"
+                        f"Expected one of: {weights_files}"
+                    )
 
-            # Load SAE from the downloaded files
-            import os
-            repo_dir = os.path.dirname(cfg_path)
-            loaded_sae = SAE.load_from_pretrained(repo_dir, device=device)
+                # Load SAE from local path
+                try:
+                    loaded_sae = SAE.load_from_pretrained(local_path, device=device)
+                except Exception as e:
+                    # If standard loading fails, try loading with explicit weight file
+                    print(f"Standard loading failed: {e}")
+                    print(f"Attempting to load weights from: {weights_path}")
+                    
+                    # Try loading weights manually if needed
+                    if weights_path.endswith('.pth'):
+                        # Convert .pth to safetensors format temporarily
+                        import torch
+                        from safetensors.torch import save_file
+                        
+                        print(f"Converting .pth file to safetensors format...")
+                        state_dict = torch.load(weights_path, map_location='cpu')
+                        print(f"Loaded .pth file with keys: {list(state_dict.keys())}")
+                        
+                        # Save as safetensors in the same directory
+                        safetensors_path = os.path.join(local_path, "sae_weights.safetensors")
+                        save_file(state_dict, safetensors_path)
+                        print(f"Converted to safetensors: {safetensors_path}")
+                        
+                        # Now try loading again
+                        loaded_sae = SAE.load_from_pretrained(local_path, device=device)
+                    else:
+                        raise
+                        
+            else:
+                # For HuggingFace repos with root-level files
+                from huggingface_hub import hf_hub_download
+                
+                # Download cfg.json and sae_weights.safetensors from repo root
+                cfg_path = hf_hub_download(repo_id=release, filename="cfg.json")
+                weights_path = hf_hub_download(repo_id=release, filename="sae_weights.safetensors")
+
+                # Load config
+                with open(cfg_path, 'r') as f:
+                    cfg_dict = json.load(f)
+
+                # Load SAE from the downloaded files
+                repo_dir = os.path.dirname(cfg_path)
+                loaded_sae = SAE.load_from_pretrained(repo_dir, device=device)
         else:
+            # Standard SAELens loading from repo with subdirectory
             loaded_sae = SAE.from_pretrained(
                 release=release,
                 sae_id=sae_id,
                 device=device,
             )
+        
         loaded_sae.to(device, dtype=DTYPE_MAP[dtype])
         loaded_sae.fold_W_dec_norm()
         loaded_sae.eval()
