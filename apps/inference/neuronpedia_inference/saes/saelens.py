@@ -85,53 +85,44 @@ class SaeLensSAE(BaseSAE):
                     )
 
                 # Load SAE from local path
-                try:
-                    loaded_sae = SAE.load_from_pretrained(local_path, device=device)
-                except Exception as e:
-                    # If standard loading fails, try loading with explicit weight file
-                    print(f"Standard loading failed: {e}")
-                    print(f"Attempting to load weights from: {weights_path}")
+                # Check if we need to convert .pth file first
+                safetensors_path = os.path.join(local_path, "sae_weights.safetensors")
+                if weights_path.endswith('.pth') and not os.path.exists(safetensors_path):
+                    # Convert .pth to safetensors format first
+                    import torch
+                    from safetensors.torch import save_file
                     
-                    # Try loading weights manually if needed
-                    if weights_path.endswith('.pth'):
-                        # Convert .pth to safetensors format temporarily
-                        import torch
-                        from safetensors.torch import save_file
-                        
-                        print(f"Converting .pth file to safetensors format...")
-                        state_dict = torch.load(weights_path, map_location='cpu')
-                        print(f"Loaded .pth file with keys: {list(state_dict.keys())}")
-                        
-                        # Map parameter names to SAELens format
-                        mapped_state_dict = {}
-                        for key, value in state_dict.items():
-                            if key == "encoder_linear.weight":
-                                # Transpose: [65536, 4096] -> [4096, 65536]
-                                mapped_state_dict["W_enc"] = value.T
-                                print(f"Transposed W_enc: {value.shape} -> {value.T.shape}")
-                            elif key == "encoder_linear.bias":
-                                mapped_state_dict["b_enc"] = value
-                            elif key == "decoder_linear.weight":
-                                # Transpose: [4096, 65536] -> [65536, 4096]
-                                mapped_state_dict["W_dec"] = value.T
-                                print(f"Transposed W_dec: {value.shape} -> {value.T.shape}")
-                            elif key == "decoder_linear.bias":
-                                mapped_state_dict["b_dec"] = value
-                            else:
-                                # Keep other keys as-is
-                                mapped_state_dict[key] = value
-                        
-                        print(f"Mapped to SAELens format with keys: {list(mapped_state_dict.keys())}")
-                        
-                        # Save as safetensors in the same directory
-                        safetensors_path = os.path.join(local_path, "sae_weights.safetensors")
-                        save_file(mapped_state_dict, safetensors_path)
-                        print(f"Converted to safetensors: {safetensors_path}")
-                        
-                        # Now try loading again
-                        loaded_sae = SAE.load_from_pretrained(local_path, device=device)
-                    else:
-                        raise
+                    print(f"Converting .pth file to safetensors format...")
+                    state_dict = torch.load(weights_path, map_location='cpu')
+                    print(f"Loaded .pth file with keys: {list(state_dict.keys())}")
+                    
+                    # Map parameter names to SAELens format
+                    mapped_state_dict = {}
+                    for key, value in state_dict.items():
+                        if key == "encoder_linear.weight":
+                            # Transpose: [65536, 4096] -> [4096, 65536]
+                            mapped_state_dict["W_enc"] = value.T
+                            print(f"Transposed W_enc: {value.shape} -> {value.T.shape}")
+                        elif key == "encoder_linear.bias":
+                            mapped_state_dict["b_enc"] = value
+                        elif key == "decoder_linear.weight":
+                            # Transpose: [4096, 65536] -> [65536, 4096]
+                            mapped_state_dict["W_dec"] = value.T
+                            print(f"Transposed W_dec: {value.shape} -> {value.T.shape}")
+                        elif key == "decoder_linear.bias":
+                            mapped_state_dict["b_dec"] = value
+                        else:
+                            # Keep other keys as-is
+                            mapped_state_dict[key] = value
+                    
+                    print(f"Mapped to SAELens format with keys: {list(mapped_state_dict.keys())}")
+                    
+                    # Save as safetensors in the same directory
+                    save_file(mapped_state_dict, safetensors_path)
+                    print(f"Converted to safetensors: {safetensors_path}")
+
+                # Now load the SAE
+                loaded_sae = SAE.load_from_pretrained(local_path, device=device)
                         
             else:
                 # For HuggingFace repos with root-level files
