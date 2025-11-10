@@ -101,13 +101,13 @@ class SaeLensSAE(BaseSAE):
                     for key, value in state_dict.items():
                         if key == "encoder_linear.weight":
                             # Transpose: [65536, 4096] -> [4096, 65536]
-                            mapped_state_dict["W_enc"] = value.T
+                            mapped_state_dict["W_enc"] = value.T.contiguous()
                             print(f"Transposed W_enc: {value.shape} -> {value.T.shape}")
                         elif key == "encoder_linear.bias":
                             mapped_state_dict["b_enc"] = value
                         elif key == "decoder_linear.weight":
                             # Transpose: [4096, 65536] -> [65536, 4096]
-                            mapped_state_dict["W_dec"] = value.T
+                            mapped_state_dict["W_dec"] = value.T.contiguous()
                             print(f"Transposed W_dec: {value.shape} -> {value.T.shape}")
                         elif key == "decoder_linear.bias":
                             mapped_state_dict["b_dec"] = value
