@@ -127,6 +127,16 @@ def stream_upload_activations(conn, activations_dir: str, model_id: str, source_
                 # Generate unique activation ID using file and position indices
                 activation_id = f"act_{model_id}_{layer}_{feature_index}_{i}_{j}"
                 
+                # Check if corresponding neuron exists before inserting activation
+                cursor.execute('''
+                    SELECT 1 FROM "Neuron" 
+                    WHERE "modelId" = %s AND layer = %s AND index = %s
+                ''', (model_id, source_id, feature_index))
+                
+                if not cursor.fetchone():
+                    # Skip this activation if no corresponding neuron exists
+                    continue
+                
                 try:
                     cursor.execute('''
                         INSERT INTO "Activation" (
