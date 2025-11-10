@@ -102,9 +102,26 @@ class SaeLensSAE(BaseSAE):
                         state_dict = torch.load(weights_path, map_location='cpu')
                         print(f"Loaded .pth file with keys: {list(state_dict.keys())}")
                         
+                        # Map parameter names to SAELens format
+                        mapped_state_dict = {}
+                        for key, value in state_dict.items():
+                            if key == "encoder_linear.weight":
+                                mapped_state_dict["W_enc"] = value
+                            elif key == "encoder_linear.bias":
+                                mapped_state_dict["b_enc"] = value
+                            elif key == "decoder_linear.weight":
+                                mapped_state_dict["W_dec"] = value
+                            elif key == "decoder_linear.bias":
+                                mapped_state_dict["b_dec"] = value
+                            else:
+                                # Keep other keys as-is
+                                mapped_state_dict[key] = value
+                        
+                        print(f"Mapped to SAELens format with keys: {list(mapped_state_dict.keys())}")
+                        
                         # Save as safetensors in the same directory
                         safetensors_path = os.path.join(local_path, "sae_weights.safetensors")
-                        save_file(state_dict, safetensors_path)
+                        save_file(mapped_state_dict, safetensors_path)
                         print(f"Converted to safetensors: {safetensors_path}")
                         
                         # Now try loading again
