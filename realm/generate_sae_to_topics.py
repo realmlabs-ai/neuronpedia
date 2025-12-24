@@ -10,7 +10,6 @@ import json
 import gzip
 import glob
 import os
-import math
 from typing import Dict, List, Any, Optional
 from collections import defaultdict
 import argparse
@@ -25,45 +24,6 @@ def load_jsonl_gz(file_path: str) -> List[Dict]:
     return data
 
 
-def calculate_entropy(token_probs: List[List]) -> float:
-    """Calculate Shannon entropy from token probabilities."""
-    if not token_probs:
-        return 0.0
-    
-    total_prob = sum(prob for _, _, prob in token_probs)
-    if total_prob == 0:
-        return 0.0
-    
-    entropy = 0.0
-    for _, _, prob in token_probs:
-        if prob > 0:
-            normalized_prob = prob / total_prob
-            entropy -= normalized_prob * math.log2(normalized_prob)
-    
-    return entropy
-
-
-def get_top_tokens_with_probs(feature_data: Dict, pos_str: List[str], pos_values: List[float], 
-                             neg_str: List[str], neg_values: List[float], top_k: int = 20) -> tuple:
-    """Extract top tokens with their probabilities for in_tokens and out_tokens."""
-    
-    # For in_tokens (positive activating tokens)
-    in_tokens = []
-    if pos_str and pos_values:
-        for i, (token, value) in enumerate(zip(pos_str[:top_k], pos_values[:top_k])):
-            # Use token index as a placeholder - in real scenario you'd need token vocab
-            token_id = 1000 + i  # Placeholder token ID
-            in_tokens.append([token, token_id, float(value)])
-    
-    # For out_tokens (negative/inhibiting tokens) 
-    out_tokens = []
-    if neg_str and neg_values:
-        for i, (token, value) in enumerate(zip(neg_str[:top_k], neg_values[:top_k])):
-            # Use token index as a placeholder
-            token_id = 2000 + i  # Placeholder token ID  
-            out_tokens.append([token, token_id, float(value)])
-    
-    return in_tokens, out_tokens
 
 
 def process_batch_files(data_dir: str, max_features: Optional[int] = None) -> Dict[str, Any]:
@@ -73,12 +33,10 @@ def process_batch_files(data_dir: str, max_features: Optional[int] = None) -> Di
     
     # Collect all data by feature index
     features_by_index = {}
-    activations_by_index = defaultdict(list)
     explanations_by_index = defaultdict(list)
-    
+
     # Get sorted file lists
     feature_files = sorted(glob.glob(os.path.join(data_dir, "features", "batch-*.jsonl.gz")))
-    activation_files = sorted(glob.glob(os.path.join(data_dir, "activations", "batch-*.jsonl.gz")))
     explanation_files = sorted(glob.glob(os.path.join(data_dir, "explanations", "batch-*.jsonl.gz")))
     
     target_features = max_features or float('inf')
@@ -104,19 +62,7 @@ def process_batch_files(data_dir: str, max_features: Optional[int] = None) -> Di
     
     # Get the indices we actually need
     target_indices = set(features_by_index.keys())
-    
-    # Process activation files (only for features we have)
-    print("Loading activation files...")
-    for activation_file in activation_files:
-        print(f"  Processing {os.path.basename(activation_file)}")
-        activations = load_jsonl_gz(activation_file)
-        for activation in activations:
-            idx = str(activation['index'])
-            if idx in target_indices:
-                activations_by_index[idx].append(activation)
-    
-    print(f"Loaded activations for {len(activations_by_index)} features")
-    
+
     # Process explanation files (only for features we have)
     print("Loading explanation files...")
     for explanation_file in explanation_files:
@@ -131,7 +77,6 @@ def process_batch_files(data_dir: str, max_features: Optional[int] = None) -> Di
     
     return {
         'features': features_by_index,
-        'activations': activations_by_index,
         'explanations': explanations_by_index
     }
 
@@ -143,7 +88,6 @@ def generate_sae_to_topics(data_dir: str, output_file: str = "sae_to_topics.json
     # Load all data
     data = process_batch_files(data_dir, max_features)
     features = data['features']
-    activations_by_index = data['activations']
     explanations_by_index = data['explanations']
     
     # Generate the sae_to_topics structure
@@ -159,7 +103,6 @@ def generate_sae_to_topics(data_dir: str, output_file: str = "sae_to_topics.json
             print(f"  Processing feature {idx}...")
             
         feature = features[idx]
-        activations = activations_by_index.get(idx, [])
         explanations = explanations_by_index.get(idx, [])
         
         # Get primary explanation description
@@ -169,21 +112,7 @@ def generate_sae_to_topics(data_dir: str, output_file: str = "sae_to_topics.json
         
         # Calculate activation density (frac_nonzero from feature data)
         activation_density = feature.get('frac_nonzero', 0.0)
-        
-        # Get top tokens from feature data
-        pos_str = feature.get('pos_str', [])
-        pos_values = feature.get('pos_values', [])
-        neg_str = feature.get('neg_str', [])
-        neg_values = feature.get('neg_values', [])
-        
-        in_tokens, out_tokens = get_top_tokens_with_probs(
-            feature, pos_str, pos_values, neg_str, neg_values
-        )
-        
-        # Calculate entropies
-        in_entropy = calculate_entropy(in_tokens)
-        out_entropy = calculate_entropy(out_tokens)
-        
+
         # Format explanations for the "other" section
         formatted_explanations = []
         for exp in explanations:
@@ -197,17 +126,13 @@ def generate_sae_to_topics(data_dir: str, output_file: str = "sae_to_topics.json
         feature_entry = {
             "sae_label": sae_label,
             "sub_topic_label": "None",
-            "topic_label": "None", 
+            "topic_label": "None",
             "csp": False,
             "detection": "NONE",
             "threshold": 0.0,
             "verified": 0,
             "display": 0,
             "other": {
-                "out_tokens": out_tokens,
-                "out_entropy": out_entropy,
-                "in_tokens": in_tokens,
-                "in_entropy": in_entropy,
                 "explanations": formatted_explanations
             },
             "activation_density": activation_density
@@ -236,7 +161,7 @@ def main():
         return 1
     
     # Check for required subdirectories
-    required_dirs = ['activations', 'explanations', 'features']
+    required_dirs = ['explanations', 'features']
     for req_dir in required_dirs:
         full_path = os.path.join(args.data_dir, req_dir)
         if not os.path.exists(full_path):
